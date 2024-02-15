@@ -5,7 +5,7 @@ from copy import deepcopy
 from functools import wraps
 from threading import Thread
 from typing import Optional, Type, Union
-from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
+from stable_baselines3.common.noise import NormalActionNoise, VectorizedActionNoise
 
 import optuna
 from sb3_contrib import TQC
@@ -238,25 +238,38 @@ class RawStatisticsCallback(BaseCallback):
 
         return True
 
+class NoiseScheduler():
+    def __init__(self, action_noise):
+        self.action_noise = action_noise
+        self.initial_sigma = action_noise._sigma
+
+    def step(self, alpha):
+        sigma = self.initial_sigma * alpha
+        self.action_noise._sigma = sigma
+        print(f"New sigma: {sigma}")
 
 class NoiseSchedulerCallback(BaseCallback):
     def __init__(self, total_timesteps: int):
         super().__init__()
         self.first: bool = True
+        self.schedulers = []
         self.total_timesteps: int = total_timesteps
-        self.initial_sigma = None
 
     def _on_step(self) -> bool:
         if self.first:
             if isinstance(self.model.action_noise, NormalActionNoise):
+                self.schedulers.append(NoiseScheduler(self.model.action_noise))
                 self.initial_sigma = self.model.action_noise._sigma
+            elif isinstance(self.model.action_noise, VectorizedActionNoise):
+                for noise in self.model.action_noise.noises:
+                    self.schedulers.append(NoiseScheduler(noise))
             else:
                 raise ValueError("The action_noise type: {} is not supported".format(type(self.model.action_noise)))
 
             self.first = False
 
         alpha = 1 - self.num_timesteps / self.total_timesteps
-        sigma = self.initial_sigma * alpha
-        self.model.action_noise._sigma = sigma
+        for scheduler in self.schedulers:
+            scheduler.step(alpha)
 
         return True

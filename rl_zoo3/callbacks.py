@@ -246,7 +246,6 @@ class NoiseScheduler():
     def step(self, alpha):
         sigma = self.initial_sigma * alpha
         self.action_noise._sigma = sigma
-        print(f"New sigma: {sigma}")
 
 class NoiseSchedulerCallback(BaseCallback):
     def __init__(self, total_timesteps: int):

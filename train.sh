@@ -8,7 +8,7 @@ TAGS=standup
 killall -9 python
 
 nohup python train.py --env=$ENV --algo=$ALGO --track --wandb-project-name $PROJECT \
-    --vec-env=subproc --tags $TAGS $HOSTNAME > $HOSTNAME &
+    --vec-env=subproc --tags $TAGS $HOSTNAME > $HOSTNAME.out &
 
 tail -f $HOSTNAME.out
 

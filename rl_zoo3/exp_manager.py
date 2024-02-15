@@ -481,7 +481,12 @@ class ExperimentManager:
             del hyperparams["noise_std"]
 
         if hyperparams.get("noise_schedule") is not None:
-            self.callbacks.append(NoiseSchedulerCallback(self.n_timesteps))
+            schedule = hyperparams.get("noise_schedule")
+            if hyperparams.get("noise_schedule") == "linear":
+                self.callbacks.append(NoiseSchedulerCallback(self.n_timesteps))
+            else:
+                raise ValueError(f"Unknown noise schedule: {schedule}")
+
             del hyperparams["noise_schedule"]
 
         return hyperparams

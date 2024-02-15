@@ -47,7 +47,7 @@ from torch import nn as nn
 
 # Register custom envs
 import rl_zoo3.import_envs  # noqa: F401
-from rl_zoo3.callbacks import SaveVecNormalizeCallback, TrialEvalCallback
+from rl_zoo3.callbacks import SaveVecNormalizeCallback, TrialEvalCallback, NoiseSchedulerCallback
 from rl_zoo3.hyperparams_opt import HYPERPARAMS_SAMPLER
 from rl_zoo3.utils import ALGOS, get_callback_list, get_class_by_name, get_latest_run_id, get_wrapper_class, linear_schedule
 
@@ -479,6 +479,10 @@ class ExperimentManager:
 
             del hyperparams["noise_type"]
             del hyperparams["noise_std"]
+
+        if hyperparams.get("noise_schedule") is not None:
+            self.callbacks.append(NoiseSchedulerCallback(self.n_timesteps))
+            del hyperparams["noise_schedule"]
 
         return hyperparams
 

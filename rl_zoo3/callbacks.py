@@ -5,6 +5,7 @@ from copy import deepcopy
 from functools import wraps
 from threading import Thread
 from typing import Optional, Type, Union
+from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 
 import optuna
 from sb3_contrib import TQC
@@ -234,5 +235,28 @@ class RawStatisticsCallback(BaseCallback):
                 exclude_dict = {key: None for key in logger_dict.keys()}
                 self._timesteps_counter += info["episode"]["l"]
                 self._tensorboard_writer.write(logger_dict, exclude_dict, self._timesteps_counter)
+
+        return True
+
+
+class NoiseSchedulerCallback(BaseCallback):
+    def __init__(self, total_timesteps: int):
+        super().__init__()
+        self.first: bool = True
+        self.total_timesteps: int = total_timesteps
+        self.initial_sigma = None
+
+    def _on_step(self) -> bool:
+        if self.first:
+            if isinstance(self.model.action_noise, NormalActionNoise):
+                self.initial_sigma = self.model.action_noise._sigma
+            else:
+                raise ValueError("The action_noise type: {} is not supported".format(type(self.model.action_noise)))
+
+            self.first = False
+
+        alpha = 1 - self.num_timesteps / self.total_timesteps
+        sigma = self.initial_sigma * alpha
+        self.model.action_noise._sigma = sigma
 
         return True

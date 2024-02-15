@@ -85,7 +85,7 @@ Acrobot-v1:
 
 BipedalWalker-v3:
   normalize: true
-  n_envs: 32
+  n_envs: 8
   n_timesteps: !!float 5e6
   policy: 'MlpPolicy'
   n_steps: 2048
@@ -580,3 +580,18 @@ Walker2d-v4:
   gae_lambda: 0.95
   max_grad_norm: 1
   vf_coef: 0.871923
+
+
+
+sigmaban-standup-v0:
+  n_timesteps: !!float 1e7
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  n_envs: 4
+  n_steps: 512
+  ent_coef: 0.002
+  batch_size: 4096
+  learning_rate: 5.0e-05
+  gae_lambda: 0.99
+
+

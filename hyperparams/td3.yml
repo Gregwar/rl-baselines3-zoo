@@ -160,3 +160,19 @@ Humanoid-v4:
 Swimmer-v4:
   <<: *mujoco-defaults
   gamma: 0.9999
+
+
+sigmaban-standup-v0: 
+  n_timesteps: !!float 3e6
+  policy: 'MlpPolicy'
+  learning_starts: 10000
+  noise_type: 'normal'
+  noise_std: 0.1
+  noise_schedule: 'linear'
+  train_freq: 1
+  gradient_steps: 1
+  n_envs: 4
+  learning_rate: lin_1e-3
+  batch_size: 4096
+  policy_kwargs: "dict(net_arch=[400, 300])"
+

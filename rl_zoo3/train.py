@@ -103,6 +103,7 @@ def train() -> None:
         "--storage", help="Database storage path if distributed optimization should be used", type=str, default=None
     )
     parser.add_argument("--study-name", help="Study name for distributed optimization", type=str, default=None)
+    parser.add_argument("--run-name", help="Run name for Wandb", type=str, default=None)
     parser.add_argument("--verbose", help="Verbose mode (0: no output, 1: INFO)", default=1, type=int)
     parser.add_argument(
         "--gym-packages",
@@ -204,7 +205,10 @@ def train() -> None:
                 "if you want to use Weights & Biases to track experiment, please install W&B via `pip install wandb`"
             ) from e
 
-        run_name = f"{args.env}__{args.algo}__{args.seed}__{int(time.time())}"
+        if args.run_name is not None:
+            run_name = args.run_name
+        else:
+            run_name = f"{args.env}__{args.algo}__{args.seed}__{int(time.time())}"
         tags = [*args.wandb_tags, f"v{sb3.__version__}"]
         run = wandb.init(
             name=run_name,

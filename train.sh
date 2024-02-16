@@ -10,7 +10,7 @@ ENV=sigmaban-standup-v0
 ALGO=td3
 TAGS=standup
 EXP_ID=`python next_run_id.py $ALGO $ENV`
-RUN_NAME="$HOSTNAME_${EXP_ID}_$1"
+RUN_NAME="${HOSTNAME}_${EXP_ID}_$1"
 
 killall -9 python
 

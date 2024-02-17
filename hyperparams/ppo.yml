@@ -589,9 +589,12 @@ sigmaban-standup-v0:
   gamma: 0.99
   n_envs: 4
   n_steps: 512
-  ent_coef: 0.01
-  batch_size: 4096
+  batch_size: 512
   learning_rate: 5.0e-05
-  gae_lambda: 0.99
+  gae_lambda: 0.95
+  vf_coef: 0.431892
+  ent_coef: 0.002
+  clip_range: 0.25
+  max_grad_norm: 0.7
 
 

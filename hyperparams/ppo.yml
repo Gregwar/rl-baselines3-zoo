@@ -584,17 +584,14 @@ Walker2d-v4:
 
 
 sigmaban-standup-v0:
-  n_timesteps: !!float 1e7
+  n_timesteps: !!float 100e6
   policy: 'MlpPolicy'
   gamma: 0.99
   n_envs: 4
   n_steps: 512
-  batch_size: 512
+  batch_size: 4096
   learning_rate: 5.0e-05
   gae_lambda: 0.95
-  vf_coef: 0.431892
-  ent_coef: 0.002
-  clip_range: 0.25
-  max_grad_norm: 0.7
+  ent_coef: 0.001
 
 

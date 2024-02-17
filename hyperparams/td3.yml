@@ -172,6 +172,6 @@ sigmaban-standup-v0:
   gradient_steps: 1
   n_envs: 4
   learning_rate: !!float 1e-3
-  batch_size: 4096
+  batch_size: 1024
   policy_kwargs: "dict(net_arch=[400, 300])"
 

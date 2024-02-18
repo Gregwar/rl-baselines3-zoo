@@ -163,7 +163,7 @@ Swimmer-v4:
 
 
 sigmaban-standup-v0: 
-  n_timesteps: !!float 25e6
+  n_timesteps: !!float 15e6
   policy: 'MlpPolicy'
   learning_starts: 10000
   noise_type: 'normal'

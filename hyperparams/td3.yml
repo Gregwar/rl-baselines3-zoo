@@ -175,3 +175,23 @@ sigmaban-standup-v0:
   batch_size: 256
   policy_kwargs: "dict(net_arch=[400, 300], activation_fn=nn.LeakyReLU)"
 
+footsteps-planning-v0: &footsteps-planning
+  n_timesteps: !!float 10e6
+  policy: 'MlpPolicy'
+  gamma: 0.98
+  buffer_size: 200000
+  learning_starts: 10000
+  noise_type: 'normal'
+  noise_std: 0.1
+  noise_schedule: 'linear'
+  gradient_steps: -1
+  train_freq: [1, "episode"]
+  learning_rate: lin_1e-3
+  policy_kwargs: "dict(net_arch=[400, 300], activation_fn=nn.LeakyReLU)"
+
+footsteps-planning-any-obstacle-multigoal-v0:
+    <<: *footsteps-planning
+
+
+
+

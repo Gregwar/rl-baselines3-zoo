@@ -15,7 +15,8 @@ RUN_NAME="${HOSTNAME}_${EXP_ID}_$1"
 killall -9 python
 
 nohup python train.py --env=$ENV --algo=$ALGO --track --wandb-project-name $PROJECT \
-    --vec-env=subproc --run-name="$RUN_NAME" -tags exp-$EXP_ID $TAGS h-$HOSTNAME > $HOSTNAME.out &
+    --eval-episodes=100 --n-eval-envs=4 --vec-env=subproc --run-name="$RUN_NAME" \
+     -tags exp-$EXP_ID $TAGS h-$HOSTNAME > $HOSTNAME.out &
 
 tail -f $HOSTNAME.out
 

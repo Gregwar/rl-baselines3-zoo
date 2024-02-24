@@ -18,6 +18,7 @@ runs
 hub
 *.mp4
 *.json
+*.out
 _build/
 
 tests/dummy_env/build/

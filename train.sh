@@ -12,7 +12,7 @@ TAGS=standup
 EXP_ID=`python next_run_id.py $ALGO $ENV`
 RUN_NAME="${HOSTNAME}_${EXP_ID}_$1"
 
-killall -9 python
+# killall -9 python
 
 nohup python train.py --env=$ENV --algo=$ALGO --track --wandb-project-name $PROJECT \
     --eval-episodes=100 --n-eval-envs=4 --vec-env=subproc --run-name="$RUN_NAME" \

@@ -56,11 +56,33 @@ obs = preprocess_obs(obs, env.observation_space).unsqueeze(0)
 
 print(f"Generating a dummy observation {obs}")
 
+
+class TD3Actor(th.nn.Module):
+    def __init__(self, policy: TD3Policy):
+        super(TD3Actor, self).__init__()
+
+        self.features_extractor = policy.actor.features_extractor
+        self.mu = policy.actor.mu
+
+    def forward(self, obs):
+        features = self.features_extractor(obs)
+        action = self.mu(features)
+
+        if policy.squash_output:
+            if not isinstance(env.action_space, gym.spaces.Box):
+                raise ValueError("Policy is squashing but the action space is not continuous")
+            low, high = th.tensor(env.action_space.low), th.tensor(env.action_space.high)
+            action = low + (0.5 * (action + 1.0) * (high - low))
+
+        return action
+
+
 actor_fname = f"{args.output}/{args.env}_actor.onnx"
 print(f"Exporting actor model to {actor_fname}")
-actor_model = th.nn.Sequential(policy.actor.features_extractor, policy.actor.mu)
+actor_model = TD3Actor(policy)
 th.onnx.export(actor_model, obs, actor_fname, opset_version=11)
 summary(actor_model)
+
 
 # Value function is a combination of actor and Q
 class TD3PolicyValue(th.nn.Module):
@@ -86,4 +108,3 @@ print("Exporting models for OpenVino...")
 input_shape = ",".join(map(str, obs.shape))
 os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
 os.system(f"mo --input_model {value_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
-

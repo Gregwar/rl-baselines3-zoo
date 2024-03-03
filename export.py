@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--env", help="Env", type=str, required=True)
 parser.add_argument("--model", help="TD3 model to export", type=str, required=False)
 parser.add_argument("--output", help="Target directory", type=str, required=True)
+parser.add_argument("--squash", help="Squash output between -1 and 1 (default False)", action="store_true")
 parser.add_argument(
     "--gym-packages",
     type=str,
@@ -68,7 +69,7 @@ class TD3Actor(th.nn.Module):
         features = self.features_extractor(obs)
         action = self.mu(features)
 
-        if policy.squash_output:
+        if policy.squash_output and not args.squash:
             if not isinstance(env.action_space, gym.spaces.Box):
                 raise ValueError("Policy is squashing but the action space is not continuous")
             low, high = th.tensor(env.action_space.low), th.tensor(env.action_space.high)

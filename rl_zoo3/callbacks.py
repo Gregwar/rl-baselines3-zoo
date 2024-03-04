@@ -5,7 +5,7 @@ from copy import deepcopy
 from functools import wraps
 from threading import Thread
 from typing import Optional, Type, Union
-from stable_baselines3.common.noise import NormalActionNoise, VectorizedActionNoise
+from stable_baselines3.common.noise import NormalActionNoise, VectorizedActionNoise, OrnsteinUhlenbeckActionNoise
 
 import optuna
 from sb3_contrib import TQC
@@ -262,6 +262,9 @@ class NoiseSchedulerCallback(BaseCallback):
             elif isinstance(self.model.action_noise, VectorizedActionNoise):
                 for noise in self.model.action_noise.noises:
                     self.schedulers.append(NoiseScheduler(noise))
+            elif isinstance(self.model.action_noise, OrnsteinUhlenbeckActionNoise):
+                self.schedulers.append(NoiseScheduler(self.model.action_noise))
+                self.initial_sigma = self.model.action_noise._sigma
             else:
                 raise ValueError("The action_noise type: {} is not supported".format(type(self.model.action_noise)))
 

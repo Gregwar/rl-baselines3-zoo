@@ -238,7 +238,8 @@ class RawStatisticsCallback(BaseCallback):
 
         return True
 
-class NoiseScheduler():
+
+class NoiseScheduler:
     def __init__(self, action_noise):
         self.action_noise = action_noise
         self.initial_sigma = action_noise._sigma
@@ -246,6 +247,7 @@ class NoiseScheduler():
     def step(self, alpha):
         sigma = self.initial_sigma * alpha
         self.action_noise._sigma = sigma
+
 
 class NoiseSchedulerCallback(BaseCallback):
     def __init__(self, total_timesteps: int):
@@ -256,15 +258,14 @@ class NoiseSchedulerCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         if self.first:
-            if isinstance(self.model.action_noise, NormalActionNoise):
+            if isinstance(self.model.action_noise, NormalActionNoise) or isinstance(
+                self.model.action_noise, OrnsteinUhlenbeckActionNoise
+            ):
                 self.schedulers.append(NoiseScheduler(self.model.action_noise))
                 self.initial_sigma = self.model.action_noise._sigma
             elif isinstance(self.model.action_noise, VectorizedActionNoise):
                 for noise in self.model.action_noise.noises:
                     self.schedulers.append(NoiseScheduler(noise))
-            elif isinstance(self.model.action_noise, OrnsteinUhlenbeckActionNoise):
-                self.schedulers.append(NoiseScheduler(self.model.action_noise))
-                self.initial_sigma = self.model.action_noise._sigma
             else:
                 raise ValueError("The action_noise type: {} is not supported".format(type(self.model.action_noise)))
 

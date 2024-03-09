@@ -174,7 +174,7 @@ sigmaban-standup-v0:
   n_envs: 4
   learning_rate: !!float 1e-3
   batch_size: 256
-  policy_kwargs: "dict(net_arch=[400, 300], activation_fn=nn.LeakyReLU)"
+  policy_kwargs: "dict(net_arch=[400, 300], activation_fn=nn.ELU)"
 
 # Attempt for 10ms / 25ms
 sigmaban-standup-v0-10ms:

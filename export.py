@@ -36,7 +36,7 @@ custom_objects = {
 print(f"Loading env {args.env}")
 env = gym.make(args.env)
 
-latest_exp_id = get_latest_run_id("logs/td3/", args.env)
+latest_exp_id = get_latest_run_id(f"logs/{args.algo}/", args.env)
 exp_id = args.exp_id if args.exp_id is not None else latest_exp_id
 print(f"Loading model {args.algo}, env {args.env}, exp_id {exp_id}")
 model_fname = f"logs/{args.algo}/{args.env}_{exp_id}/best_model.zip"

@@ -1,20 +1,17 @@
-from distutils.sysconfig import customize_compiler
-import gymnasium as gym
 import os
-import openvino
+import gymnasium as gym
 import rl_zoo3.import_envs
 import importlib
 import torch as th
-from torchinfo import summary
-from stable_baselines3.td3.policies import TD3Policy
-from stable_baselines3.common.preprocessing import is_image_space, preprocess_obs
 import argparse
-from rl_zoo3.utils import ALGOS, create_test_env, get_latest_run_id, get_saved_hyperparams
+from rl_zoo3.export import onnx_export, make_dummy_obs
+from rl_zoo3.utils import ALGOS, get_latest_run_id
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--env", help="Env", type=str, required=True)
-parser.add_argument("--model", help="TD3 model to export", type=str, required=False)
+parser.add_argument("--algo", help="RL Algorithm", default="td3", type=str, required=False)
+parser.add_argument("--exp_id", help="Experiment ID", type=int, required=False)
 parser.add_argument("--output", help="Target directory", type=str, required=True)
 parser.add_argument("--squash", help="Squash output between -1 and 1 (default False)", action="store_true")
 parser.add_argument(
@@ -39,73 +36,21 @@ custom_objects = {
 print(f"Loading env {args.env}")
 env = gym.make(args.env)
 
-if args.model is None:
-    exp_id = get_latest_run_id("logs/td3/", args.env)
-    model_fname = f"logs/td3/{args.env}_{exp_id}/best_model.zip"
-else:
-    model_fname = args.model
+latest_exp_id = get_latest_run_id("logs/td3/", args.env)
+exp_id = args.exp_id if args.exp_id is not None else latest_exp_id
+print(f"Loading model {args.algo}, env {args.env}, exp_id {exp_id}")
+model_fname = f"logs/{args.algo}/{args.env}_{exp_id}/best_model.zip"
 
 print(f"Loading model {model_fname}")
-model = ALGOS["td3"].load(model_fname, env=env, custom_objects=custom_objects, device=device)
-
-policy = model.policy
-
-# Creating a dummy observation
-obs, _ = env.reset()
-obs = th.Tensor(obs, device=device)
-obs = preprocess_obs(obs, env.observation_space).unsqueeze(0)
-
-print(f"Generating a dummy observation {obs}")
-
-
-class TD3Actor(th.nn.Module):
-    def __init__(self, policy: TD3Policy):
-        super(TD3Actor, self).__init__()
-
-        self.features_extractor = policy.actor.features_extractor
-        self.mu = policy.actor.mu
-
-    def forward(self, obs):
-        features = self.features_extractor(obs)
-        action = self.mu(features)
-
-        if policy.squash_output and not args.squash:
-            if not isinstance(env.action_space, gym.spaces.Box):
-                raise ValueError("Policy is squashing but the action space is not continuous")
-            low, high = th.tensor(env.action_space.low), th.tensor(env.action_space.high)
-            action = low + (0.5 * (action + 1.0) * (high - low))
-
-        return action
-
+model = ALGOS[args.algo].load(model_fname, env=env, custom_objects=custom_objects, device=device)
 
 actor_fname = f"{args.output}/{args.env}_actor.onnx"
-print(f"Exporting actor model to {actor_fname}")
-actor_model = TD3Actor(policy)
-th.onnx.export(actor_model, obs, actor_fname, opset_version=11)
-summary(actor_model)
-
-
-# Value function is a combination of actor and Q
-class TD3PolicyValue(th.nn.Module):
-    def __init__(self, policy: TD3Policy, actor_model: th.nn.Module):
-        super(TD3PolicyValue, self).__init__()
-
-        self.actor = actor_model
-        self.critic = policy.critic
-
-    def forward(self, obs):
-        action = self.actor(obs)
-        critic_features = self.critic.features_extractor(obs)
-        return self.critic.q_networks[0](th.cat([critic_features, action], dim=1))
-
-
-v_model = TD3PolicyValue(policy, actor_model)
-summary(v_model)
 value_fname = f"{args.output}/{args.env}_value.onnx"
-print(f"Exporting value model to {value_fname}")
-th.onnx.export(v_model, obs, value_fname, opset_version=11)
+print(f"Exporting actor model to {actor_fname}")
+onnx_export(env, model, actor_fname, value_fname, args.squash)
 
 print("Exporting models for OpenVino...")
+obs = make_dummy_obs(env)
 input_shape = ",".join(map(str, obs.shape))
 os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
 os.system(f"mo --input_model {value_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")

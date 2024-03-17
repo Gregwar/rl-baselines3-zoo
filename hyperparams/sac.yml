@@ -294,11 +294,11 @@ sigmaban-standup-v0:
   policy_kwargs: "dict(net_arch=[384, 256], activation_fn=nn.LeakyReLU)"
 
 sigmaban-standup-v0-50ms:
-  n_timesteps: !!float 30e6
+  n_timesteps: !!float 15e6
   policy: 'MlpPolicy'
-  learning_rate: lin_2.5e-4
+  learning_rate: lin_3e-4
   buffer_size: 1000000
-  batch_size: 256
+  batch_size: 512
   n_envs: 4
   gamma: 0.99
   ent_coef: 'auto'

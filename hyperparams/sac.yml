@@ -282,7 +282,7 @@ NeckEnvRelative-v2:
 sigmaban-standup-v0:
   n_timesteps: !!float 30e6
   policy: 'MlpPolicy'
-  learning_rate: !!float 1.5e-4
+  learning_rate: lin_1.5e-4
   buffer_size: 1000000
   batch_size: 512
   n_envs: 8

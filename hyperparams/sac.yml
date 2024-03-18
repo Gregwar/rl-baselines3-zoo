@@ -278,16 +278,61 @@ NeckEnvRelative-v2:
   sde_sample_freq: 64
   policy_kwargs: "dict(log_std_init=-2, net_arch=[256, 256])"
 
-  
 sigmaban-standup-v0:
-  n_timesteps: !!float 15e6
+  n_timesteps: !!float 30e6
   policy: 'MlpPolicy'
-  learning_rate: !!float 3e-4
-  buffer_size: 1000000
-  batch_size: 256
-  n_envs: 4
+  learning_rate: lin_3e-4
+  buffer_size: 2500000
+  batch_size: 512
+  n_envs: 16
+  gamma: 0.998
   ent_coef: 'auto'
   train_freq: 1
   gradient_steps: 1
-  learning_starts: 1000
+  learning_starts: 10000
+  policy_kwargs: "dict(
+    net_arch=[384, 256],
+    activation_fn=nn.ELU,
+    optimizer_class=th.optim.AdamW,
+    optimizer_kwargs=dict(weight_decay=1e-3)
+  )"
+
+  
+sigmaban-standup-v0-25ms:
+  n_timesteps: !!float 20e6
+  policy: 'MlpPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 2000000
+  batch_size: 512
+  n_envs: 8
+  gamma: 0.998
+  ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
+  policy_kwargs: "dict(
+    net_arch=[384, 256],
+    activation_fn=nn.ELU,
+    optimizer_class=th.optim.AdamW,
+    optimizer_kwargs=dict(weight_decay=1e-3)
+  )"
+
+sigmaban-standup-v0-50ms:
+  n_timesteps: !!float 15e6
+  policy: 'MlpPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  n_envs: 4
+  gamma: 0.99
+  ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
+  policy_kwargs: "dict(
+    net_arch=[384, 256],
+    activation_fn=nn.ELU,
+    optimizer_class=th.optim.AdamW,
+    optimizer_kwargs=dict(weight_decay=1e-3)
+  )"
 

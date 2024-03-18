@@ -6,6 +6,7 @@ from sb3_contrib import ARS, QRDQN, TQC, TRPO, RecurrentPPO
 from stable_baselines3.common.preprocessing import preprocess_obs
 from stable_baselines3.td3.policies import TD3Policy
 from stable_baselines3.sac.policies import SACPolicy
+from stable_baselines3.common.policies import ActorCriticPolicy
 
 device = th.device("cpu")
 
@@ -95,6 +96,7 @@ def make_dummy_obs(env) -> th.Tensor:
 
 def onnx_export(env: gym.Env, model, actor_filename: str, value_filename=None, squash_output: bool = False):
     obs = make_dummy_obs(env)
+    value_model = None
 
     if isinstance(model, TD3):
         actor_model = TD3Actor(env, model.policy, squash_output)
@@ -107,6 +109,8 @@ def onnx_export(env: gym.Env, model, actor_filename: str, value_filename=None, s
         actor_model = SACActor(env, model.policy, squash_output)
         if value_filename is not None:
             value_model = SACPolicyValue(model.policy, actor_model)
+    elif isinstance(model, PPO):
+        actor_model = model.policy
     else:
         raise ValueError(f"Unsupported model {type(model)}")
 
@@ -114,7 +118,7 @@ def onnx_export(env: gym.Env, model, actor_filename: str, value_filename=None, s
     summary(actor_model)
     th.onnx.export(actor_model, obs, actor_filename, opset_version=11)
 
-    if value_filename is not None:
+    if value_model is not None:
         print("Value model")
         summary(value_model)
         th.onnx.export(value_model, obs, value_filename, opset_version=11)

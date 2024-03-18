@@ -2,6 +2,7 @@ import gymnasium as gym
 from torchinfo import summary
 import torch as th
 from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
+from sb3_contrib import ARS, QRDQN, TQC, TRPO, RecurrentPPO
 from stable_baselines3.common.preprocessing import preprocess_obs
 from stable_baselines3.td3.policies import TD3Policy
 from stable_baselines3.sac.policies import SACPolicy
@@ -99,7 +100,7 @@ def onnx_export(env: gym.Env, model, actor_filename: str, value_filename=None, s
         actor_model = TD3Actor(env, model.policy, squash_output)
         if value_filename is not None:
             value_model = TD3PolicyValue(model.policy, actor_model)
-    elif isinstance(model, SAC):
+    elif isinstance(model, SAC) or isinstance(model, TQC):
         if model.use_sde:
             raise NotImplementedError("SDE not supported")
 

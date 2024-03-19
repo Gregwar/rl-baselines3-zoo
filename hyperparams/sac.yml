@@ -298,7 +298,7 @@ sigmaban-standup-v0-10ms:
   )"
 
   
-sigmaban-standup-v0:
+sigmaban-standup-v0-25ms:
   n_timesteps: !!float 20e6
   policy: 'MlpPolicy'
   learning_rate: lin_3e-4
@@ -317,14 +317,14 @@ sigmaban-standup-v0:
     optimizer_kwargs=dict(weight_decay=1e-3)
   )"
 
-sigmaban-standup-v0-50ms:
+sigmaban-standup-v0:
   n_timesteps: !!float 15e6
   policy: 'MlpPolicy'
   learning_rate: lin_3e-4
   buffer_size: 1000000
   batch_size: 256
   n_envs: 4
-  gamma: 0.99
+  gamma: 0.995
   ent_coef: 'auto'
   train_freq: 1
   gradient_steps: 1

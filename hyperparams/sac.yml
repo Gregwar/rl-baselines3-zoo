@@ -285,7 +285,7 @@ sigmaban-standup-v0-10ms:
   buffer_size: 2500000
   batch_size: 512
   n_envs: 16
-  gamma: 0.998
+  gamma: 0.9999
   ent_coef: 'auto'
   train_freq: 1
   gradient_steps: 1

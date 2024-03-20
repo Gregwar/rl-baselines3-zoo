@@ -337,3 +337,22 @@ sigmaban-standup-v0-50ms:
     optimizer_kwargs=dict(weight_decay=1e-2)
   )"
 
+sigmaban-standup-v0-vt:
+  n_timesteps: !!float 20e6
+  policy: 'MlpPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 2000000
+  batch_size: 512
+  n_envs: 8
+  gamma: 0.998
+  variable_time: True
+  ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+  policy_kwargs: "dict(
+    net_arch=[384, 256],
+    activation_fn=nn.ELU,
+    optimizer_class=th.optim.AdamW,
+    optimizer_kwargs=dict(weight_decay=1e-2)
+  )"

@@ -285,7 +285,7 @@ sigmaban-standup-v0-10ms:
   buffer_size: 2500000
   batch_size: 512
   n_envs: 16
-  gamma: 0.9999
+  gamma: 0.998
   ent_coef: 'auto'
   train_freq: 1
   gradient_steps: 1
@@ -294,7 +294,7 @@ sigmaban-standup-v0-10ms:
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-3)
+    optimizer_kwargs=dict(weight_decay=1e-2)
   )"
 
   
@@ -305,16 +305,17 @@ sigmaban-standup-v0:
   buffer_size: 2000000
   batch_size: 512
   n_envs: 8
-  gamma: 0.9999
+  gamma: 0.995
+  # variable_time: True
   ent_coef: 'auto'
   train_freq: 1
   gradient_steps: 1
-  learning_starts: 10000
+  learning_starts: 1000
   policy_kwargs: "dict(
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-3)
+    optimizer_kwargs=dict(weight_decay=1e-2)
   )"
 
 sigmaban-standup-v0-50ms:
@@ -333,6 +334,6 @@ sigmaban-standup-v0-50ms:
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-3)
+    optimizer_kwargs=dict(weight_decay=1e-2)
   )"
 

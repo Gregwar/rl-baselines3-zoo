@@ -145,6 +145,7 @@ def train() -> None:
         default=False,
         help="if toggled, this experiment will be tracked with Weights and Biases",
     )
+    parser.add_argument("--wandb-code-dir", type=str, default=None, help="extra code directory to upload to wandb")
     parser.add_argument("--wandb-project-name", type=str, default="sb3", help="the wandb's project name")
     parser.add_argument("--wandb-entity", type=str, default=None, help="the entity (team) of wandb's project")
     parser.add_argument(
@@ -220,6 +221,10 @@ def train() -> None:
             monitor_gym=True,  # auto-upload the videos of agents playing the game
             save_code=True,  # optional
         )
+
+        if args.wandb_code_dir is not None:
+            run.log_code(root=args.wandb_code_dir)
+
         args.tensorboard_log = f"runs/{run_name}"
 
     exp_manager = ExperimentManager(

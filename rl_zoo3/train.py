@@ -241,6 +241,9 @@ def train() -> None:
                     ".o",
                     ".a",
                     ".so",
+                    ".avi",
+                    ".log",
+                    ".out"
                 ]
                 for ext in extensions:
                     if x.endswith(ext):

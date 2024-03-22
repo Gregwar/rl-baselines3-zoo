@@ -17,7 +17,8 @@ RUN_NAME="${HOSTNAME}_${EXP_ID}_$1"
 nohup python train.py --run-name="$RUN_NAME" \
     --env=$ENV --algo=$ALGO --track --wandb-project-name $PROJECT \
     --eval-episodes=100 --n-eval-envs=4 --vec-env=subproc \
-     -tags exp-$EXP_ID $TAGS h-$HOSTNAME > $HOSTNAME.out &
+    --wandb-code-dir=../mujoco_sim/ \
+    -tags exp-$EXP_ID $TAGS h-$HOSTNAME > $HOSTNAME.out &
 
 tail -f $HOSTNAME.out
 

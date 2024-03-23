@@ -294,7 +294,7 @@ sigmaban-standup-v0-10ms:
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-2)
+    optimizer_kwargs=dict(weight_decay=1e-3)
   )"
 
   
@@ -314,7 +314,7 @@ sigmaban-standup-v0-25ms:
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-2)
+    optimizer_kwargs=dict(weight_decay=1e-3)
   )"
 
 sigmaban-standup-v0:
@@ -333,7 +333,7 @@ sigmaban-standup-v0:
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-2)
+    optimizer_kwargs=dict(weight_decay=1e-3)
   )"
 
 sigmaban-standup-v0-vt:
@@ -353,5 +353,5 @@ sigmaban-standup-v0-vt:
     net_arch=[384, 256],
     activation_fn=nn.ELU,
     optimizer_class=th.optim.AdamW,
-    optimizer_kwargs=dict(weight_decay=1e-2)
+    optimizer_kwargs=dict(weight_decay=1e-3)
   )"

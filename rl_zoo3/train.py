@@ -224,33 +224,14 @@ def train() -> None:
 
         if args.wandb_code_dir is not None:
 
-            def exclude_fn(x):
-                extensions = [
-                    ".pyc",
-                    ".pyo",
-                    ".pyd",
-                    "__pycache__",
-                    ".ipynb_checkpoints",
-                    ".pkl",
-                    ".pth",
-                    ".zip",
-                    ".pdf",
-                    ".git",
-                    ".swp",
-                    ".wandb",
-                    ".o",
-                    ".a",
-                    ".so",
-                    ".avi",
-                    ".log",
-                    ".out"
-                ]
+            def include_fn(x):
+                extensions = [".py", ".yaml", ".json", ".toml", ".xml"]
                 for ext in extensions:
                     if x.endswith(ext):
                         return True
                 return False
 
-            run.log_code(root=args.wandb_code_dir, exclude_fn=exclude_fn)
+            run.log_code(root=args.wandb_code_dir, include_fn=include_fn)
 
         args.tensorboard_log = f"runs/{run_name}"
 

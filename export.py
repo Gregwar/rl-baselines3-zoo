@@ -6,6 +6,7 @@ import torch as th
 import argparse
 from rl_zoo3.export import onnx_export, make_dummy_obs
 from rl_zoo3.utils import ALGOS, get_latest_run_id
+import openvino as ov
 
 
 parser = argparse.ArgumentParser()
@@ -51,6 +52,16 @@ onnx_export(env, model, actor_fname, value_fname, args.squash)
 
 print("Exporting models for OpenVino...")
 obs = make_dummy_obs(env)
-input_shape = ",".join(map(str, obs.shape))
-os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
-os.system(f"mo --input_model {value_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
+
+#### Old way to export model to OpenVino IR using Model Optimizer (mo) ####
+# input_shape = ",".join(map(str, obs.shape))
+
+# os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
+# os.system(f"mo --input_model {value_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
+
+input_shape = (obs.shape, ov.Type.f32)
+
+ov_model_actor = ov.convert_model(input_model=actor_fname, input=input_shape)
+ov_model_value = ov.convert_model(input_model=value_fname,input=input_shape)
+ov.save_model(ov_model_actor, f"{args.output}{args.env}_actor.xml")
+ov.save_model(ov_model_value, f"{args.output}{args.env}_value.xml")

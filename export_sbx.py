@@ -140,25 +140,27 @@ mlp = TorchActor(model.policy, args.squash)
 mlp.eval()
 
 if args.enjoy:
-    # Enjoy the torch module
-    for episode in range(100_000):
-        obs, infos = env.reset()
-        finished = False
-        returns = 0
+    env = gymnasium.make(args.env, render_mode="human")
+    with torch.no_grad():
+        # Enjoy the torch module
+        for episode in range(100_000):
+            obs, infos = env.reset()
+            finished, truncated = False, False
+            returns = 0
 
-        while not finished:
-            obs_torch = torch.tensor(obs).unsqueeze(0)
-            action_torch = mlp(torch.tensor(obs_torch))
-            action = action_torch.detach().numpy().squeeze()
+            while not finished and not truncated:
+                obs_torch = torch.tensor(obs).unsqueeze(0)
+                action_torch = mlp(torch.tensor(obs_torch))
+                action = action_torch.detach().numpy().squeeze()
 
-            # That would be the code to use with the native JAX module (for debugging purpose)
-            # action, _ = model.predict(obs, deterministic=True)
-            # print(action)
+                # That would be the code to use with the native JAX module (for debugging purpose)
+                # action, _ = model.predict(obs, deterministic=True)
+                # print(action)
 
-            obs, rewards, finished, truncated, infos = env.step(action)
-            returns += rewards
+                obs, rewards, finished, truncated, infos = env.step(action)
+                returns += rewards
 
-        print(f"Episode {episode} returns {returns}")
+            print(f"Episode {episode} returns {returns}")
 else:
     obs = make_dummy_obs(env)
 

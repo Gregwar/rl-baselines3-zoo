@@ -36,6 +36,8 @@ print(f"Loading model {args.algo}, env {args.env}, exp_id {exp_id}")
 model_fname = f"logs/{args.algo}/{args.env}_{exp_id}/best_model.zip"
 
 print(f"Loading model {model_fname}")
+if args.algo != "crossq":
+    raise NotImplementedError("Only CrossQ is currently supported")
 model = ALGOS[args.algo].load(model_fname, env=env)
 
 
@@ -80,7 +82,26 @@ def load_dense(params: dict) -> torch.nn.Linear:
     return dense
 
 
-class JaxMLP(torch.nn.Module):
+class TorchActor(torch.nn.Module):
+    """
+    Jax Actor translated to PyTorch
+    This is based on CrossQ actor model, the architecture is as following:
+
+    - BatchRenorm
+    - Dense
+    - ReLu
+    - BatchRenor
+    - Dense
+    - ReLu
+    [...] repeated for hidden layers
+    - BatchRenorm
+    - Dense
+    - Tanh (output layer)
+    - If not squashed, the output is rescaled to the action space
+
+    The activation function has to be ReLu
+    """    
+
     def __init__(self, policy, squash: bool = False):
         super().__init__()
         jax_params = policy.actor_state.params
@@ -115,7 +136,7 @@ class JaxMLP(torch.nn.Module):
         return output
 
 
-mlp = JaxMLP(model.policy, args.squash)
+mlp = TorchActor(model.policy, args.squash)
 mlp.eval()
 
 if args.enjoy:

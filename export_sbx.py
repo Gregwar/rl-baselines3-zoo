@@ -8,6 +8,7 @@ from rl_zoo3.export import make_dummy_obs
 from sbx import DDPG, DQN, PPO, SAC, TD3, TQC, DroQ, CrossQ
 from rl_zoo3.utils import ALGOS, get_latest_run_id
 import argparse
+import openvino as ov
 
 rl_zoo3.ALGOS["ddpg"] = DDPG
 rl_zoo3.ALGOS["dqn"] = DQN
@@ -169,6 +170,12 @@ else:
     torch.onnx.export(mlp, obs, actor_fname, opset_version=11)
 
     print("Exporting models for OpenVino...")
-    input_shape = ",".join(map(str, obs.shape))
-    os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
+    
+    #### Old way to export model to OpenVino IR using Model Optimizer (mo) ####
+    # input_shape = ",".join(map(str, obs.shape))
+    # os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")
 
+    input_shape = (obs.shape, ov.Type.f32)
+
+    ov_model_actor = ov.convert_model(input_model=actor_fname, input=input_shape)
+    ov.save_model(ov_model_actor, f"{args.output}{args.env}_actor.xml")

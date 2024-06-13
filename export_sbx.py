@@ -37,22 +37,22 @@ print(f"Loading model {args.algo}, env {args.env}, exp_id {exp_id}")
 model_fname = f"logs/{args.algo}/{args.env}_{exp_id}/best_model.zip"
 
 print(f"Loading model {model_fname}")
-if args.algo != "crossq":
-    raise NotImplementedError("Only CrossQ is currently supported")
+if args.algo != "crossq" and args.algo != "sac":
+    raise NotImplementedError("Only CrossQ & SAC are currently supported")
 model = ALGOS[args.algo].load(model_fname, env=env)
 
 
 def jax_to_torch(tensor: jax.Array) -> torch.Tensor:
     """
     Converts a jax tensor (Array) to a torch tensor
-    """    
+    """
     return torch.tensor(np.array(tensor))
 
 
 def load_batch_norm(params: dict, batch_stats: dict) -> torch.nn.BatchNorm1d:
     """
     Translate a JAX Batch norm to Torch
-    """    
+    """
     features = params["bias"].shape[0]
 
     bn = torch.nn.BatchNorm1d(features, momentum=0.99, eps=0.001)
@@ -70,7 +70,7 @@ def load_batch_norm(params: dict, batch_stats: dict) -> torch.nn.BatchNorm1d:
 def load_dense(params: dict) -> torch.nn.Linear:
     """
     Translates a JAX Dense layer to Torch
-    """    
+    """
     in_features, out_features = params["kernel"].shape
 
     dense = torch.nn.Linear(in_features, out_features)
@@ -101,12 +101,17 @@ class TorchActor(torch.nn.Module):
     - If not squashed, the output is rescaled to the action space
 
     The activation function has to be ReLu
-    """    
+    """
 
     def __init__(self, policy, squash: bool = False):
         super().__init__()
         jax_params = policy.actor_state.params
-        batch_stats = policy.actor_state.batch_stats
+        if "params" in jax_params:
+            jax_params = jax_params["params"]
+        has_batch_norm: bool = "BatchRenorm_0" in jax_params
+
+        if has_batch_norm:
+            batch_stats = policy.actor_state.batch_stats
         self.action_space = policy.action_space
         self.squash = squash
 
@@ -115,17 +120,16 @@ class TorchActor(torch.nn.Module):
 
         layers = []
         for k in range(len(policy.actor.net_arch)):
-            layers += [
-                load_batch_norm(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"]),
-                load_dense(jax_params[f"Dense_{k}"]),
-                torch.nn.ReLU()
-            ]
+            if has_batch_norm:
+                layers += [load_batch_norm(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"])]
+            layers += [load_dense(jax_params[f"Dense_{k}"]), torch.nn.ReLU()]
 
         k = len(policy.actor.net_arch)
+        if has_batch_norm:
+            layers += [load_batch_norm(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"])]
         layers += [
-            load_batch_norm(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"]),
             load_dense(jax_params[f"Dense_{k}"]),
-            torch.nn.Tanh()
+            torch.nn.Tanh(),
         ]
         self.net = torch.nn.Sequential(*layers)
 
@@ -170,7 +174,7 @@ else:
     torch.onnx.export(mlp, obs, actor_fname, opset_version=11)
 
     print("Exporting models for OpenVino...")
-    
+
     #### Old way to export model to OpenVino IR using Model Optimizer (mo) ####
     # input_shape = ",".join(map(str, obs.shape))
     # os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")

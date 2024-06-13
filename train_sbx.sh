@@ -5,7 +5,7 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-PROJECT=sigmaban-standup
+PROJECT=sigmaban-standup-desiredstate
 ENV=sigmaban-standup-v0
 ALGO=crossq
 TAGS=standup

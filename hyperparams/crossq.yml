@@ -317,173 +317,22 @@ sigmaban-standup-v0-25ms:
     optimizer_kwargs=dict(weight_decay=1e-3)
   )"
 
-# Indur hyperparams Optuna Exp 325
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   policy: 'MlpPolicy'
-#   learning_rate: !!float 0.0002622105801875351
-#   buffer_size: 100000
-#   batch_size: 256
-#   n_envs: 16
-#   gamma: 0.95
-#   ent_coef: 'auto'
-#   train_freq: 64
-#   gradient_steps: 256
-#   learning_starts: 20000
-#   policy_kwargs: "dict(
-#     net_arch=[384, 256],
-#   )"
-
-#Legolas hyperparams Optuna Exp 317
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   policy: 'MlpPolicy'
-#   learning_rate: !!float 0.00042507239105552794
-#   buffer_size: 100000
-#   batch_size: 64
-#   n_envs: 16
-#   gamma: 0.98
-#   ent_coef: 'auto'
-#   train_freq: 4
-#   gradient_steps: 512
-#   learning_starts: 20000
-#   policy_kwargs: "dict(
-#     net_arch=[384, 256],
-#   )"
-
-# Ren hyperparams Optuna Exp 156
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   policy: 'MlpPolicy'
-#   learning_rate: !!float 0.00022847276337905936
-#   buffer_size: 1000000
-#   batch_size: 128
-#   n_envs: 8
-#   gamma: 0.98
-#   ent_coef: 'auto'
-#   train_freq: 4
-#   gradient_steps: 256
-#   learning_starts: 20000
-#   policy_kwargs: "dict(
-#     net_arch=[384, 256],
-#   )"
-
-# Indur hyperparams Optuna Exp 140 (Best for the moment)
-sigmaban-standup-v0:
+# CrossQ Paper hyperparameters
+sigmaban-standup-v0: &sigmaban-standup
   n_timesteps: !!float 15e6
   policy: 'MlpPolicy'
-  learning_rate: !!float 0.0009164890867566588
+  learning_rate: !!float 0.001
   buffer_size: 1000000
-  batch_size: 2048
+  batch_size: 256
   n_envs: 16
-  gamma: 0.95
+  gamma: 0.99
   ent_coef: 'auto'
-  train_freq: 16
-  gradient_steps: 128
-  learning_starts: 10000
+  train_freq: 4
+  gradient_steps: 512
+  learning_starts: 100000
   policy_kwargs: "dict(
-    net_arch=[384, 256],
+    net_arch=[384, 256]
   )"
-
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   policy: 'MlpPolicy'
-#   learning_rate: lin_3e-4
-#   buffer_size: 1000000
-#   batch_size: 256
-#   n_envs: 8
-#   gamma: 0.99
-#   ent_coef: 'auto'
-#   train_freq: 1
-#   gradient_steps: 1
-#   learning_starts: 10000
-#   policy_kwargs: "dict(
-#     net_arch=[384, 256],
-#   )"
-
-#Exp 27
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   gamma: 0.99
-#   learning_starts: 10000
-#   n_envs: 4
-#   policy: 'MlpPolicy'
-#   gradient_steps: 8
-#   train_freq: 1
-#   ent_coef: 'auto'
-#   policy_kwargs: "dict(
-#   net_arch=[384, 256],
-#   )"
-
-#Exp 25
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   gamma: 0.99
-#   learning_starts: 10000
-#   n_envs: 6
-#   policy: 'MlpPolicy'
-#   gradient_steps: 16
-#   train_freq: 1
-#   ent_coef: 'auto'
-#   policy_kwargs: "dict(
-#   net_arch=[384, 256],
-#   )"
-
-#Exp 24
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   gamma: 0.99
-#   learning_starts: 10000
-#   n_envs: 16
-#   policy: 'MlpPolicy'
-#   gradient_steps: 16
-#   train_freq: 1
-#   ent_coef: 'auto'
-#   policy_kwargs: "dict(
-#   net_arch=[384, 256],
-#   )"
-
-#Exp 18/23
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   gamma: 0.99
-#   learning_starts: 10000
-#   n_envs: 8
-#   policy: 'MlpPolicy'
-#   gradient_steps: 16
-#   train_freq: 1
-#   ent_coef: 'auto'
-#   policy_kwargs: "dict(
-#   net_arch=[384, 256],
-#   )"
-
-#Exp 19
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   gamma: 0.999
-#   learning_starts: 10000
-#   n_envs: 16
-#   policy: 'MlpPolicy'
-#   gradient_steps: 30
-#   train_freq: 1
-#   ent_coef: 'auto'
-#   policy_kwargs: "dict(
-#   net_arch=[384, 256],
-#   )"
-
-#Exp 16/17
-# sigmaban-standup-v0:
-#   n_timesteps: !!float 15e6
-#   gamma: 0.99
-#   learning_starts: 10000
-#   n_envs: 16
-#   policy: 'MlpPolicy'
-#   gradient_steps: 30
-#   train_freq: 1
-#   ent_coef: 'auto'
-#   policy_kwargs: "dict(
-#   net_arch=[384, 256],
-#   )"
 
 sigmaban-standup-v0-vt:
   n_timesteps: !!float 20e6
@@ -504,3 +353,4 @@ sigmaban-standup-v0-vt:
     optimizer_class=th.optim.AdamW,
     optimizer_kwargs=dict(weight_decay=1e-3)
   )"
+

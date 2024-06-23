@@ -244,28 +244,30 @@ def sample_sac_params(trial: optuna.Trial, n_actions: int, n_envs: int, addition
     # train_freq = trial.suggest_categorical('train_freq', [1, 10, 100, 300])
     train_freq = trial.suggest_categorical("train_freq", [1, 4, 8, 16, 32, 64, 128, 256, 512])
     # Polyak coeff
-    tau = trial.suggest_categorical("tau", [0.001, 0.005, 0.01, 0.02, 0.05, 0.08])
+    # tau = trial.suggest_categorical("tau", [0.001, 0.005, 0.01, 0.02, 0.05, 0.08])
     # gradient_steps takes too much time
     # gradient_steps = trial.suggest_categorical('gradient_steps', [1, 100, 300])
     gradient_steps = train_freq
     # ent_coef = trial.suggest_categorical('ent_coef', ['auto', 0.5, 0.1, 0.05, 0.01, 0.0001])
     ent_coef = "auto"
     # You can comment that out when not using gSDE
-    log_std_init = trial.suggest_float("log_std_init", -4, 1)
+    # log_std_init = trial.suggest_float("log_std_init", -4, 1)
     # NOTE: Add "verybig" to net_arch when tuning HER
-    net_arch_type = trial.suggest_categorical("net_arch", ["small", "medium", "big"])
+    # net_arch_type = trial.suggest_categorical("net_arch", ["small", "medium", "big"])
     # activation_fn = trial.suggest_categorical('activation_fn', [nn.Tanh, nn.ReLU, nn.ELU, nn.LeakyReLU])
 
-    net_arch = {
-        "small": [64, 64],
-        "medium": [256, 256],
-        "big": [400, 300],
-        # Uncomment for tuning HER
-        # "large": [256, 256, 256],
-        # "verybig": [512, 512, 512],
-    }[net_arch_type]
+    net_arch=[384, 256]
 
-    target_entropy = "auto"
+    # net_arch = {
+    #     "small": [64, 64],
+    #     "medium": [256, 256],
+    #     "big": [400, 300],
+    #     # Uncomment for tuning HER
+    #     # "large": [256, 256, 256],
+    #     # "verybig": [512, 512, 512],
+    # }[net_arch_type]
+
+    # target_entropy = "auto"
     # if ent_coef == 'auto':
     #     # target_entropy = trial.suggest_categorical('target_entropy', ['auto', 5, 1, 0, -1, -5, -10, -20, -50])
     #     target_entropy = trial.suggest_float('target_entropy', -10, 10)
@@ -279,9 +281,9 @@ def sample_sac_params(trial: optuna.Trial, n_actions: int, n_envs: int, addition
         "train_freq": train_freq,
         "gradient_steps": gradient_steps,
         "ent_coef": ent_coef,
-        "tau": tau,
-        "target_entropy": target_entropy,
-        "policy_kwargs": dict(log_std_init=log_std_init, net_arch=net_arch),
+        # "tau": tau,
+        # "target_entropy": target_entropy,
+        "policy_kwargs": dict(net_arch=net_arch),
     }
 
     if additional_args["using_her_replay_buffer"]:
@@ -342,6 +344,7 @@ def sample_crossq_params(trial: optuna.Trial, n_actions: int, n_envs: int, addit
         "train_freq": train_freq,
         "gradient_steps": gradient_steps,
         "ent_coef": ent_coef,
+        "n_envs": n_envs,
         # "tau": tau,
         # "target_entropy": target_entropy,
         "policy_kwargs": dict(net_arch=net_arch),

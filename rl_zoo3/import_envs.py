@@ -71,4 +71,3 @@ for env_id in MaskVelocityWrapper.velocity_indices.keys():
         entry_point=create_no_vel_env(env_id),  # type: ignore[arg-type]
     )
 
-import mujoco_rhoban_env

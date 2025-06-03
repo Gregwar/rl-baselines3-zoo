@@ -354,6 +354,7 @@ def sample_crossq_params(trial: optuna.Trial, n_actions: int, n_envs: int, addit
         "train_freq": train_freq,
         "gradient_steps": gradient_steps,
         "ent_coef": ent_coef,
+        "n_envs": n_envs,
         # "tau": tau,
         # "target_entropy": target_entropy,
         "policy_kwargs": dict(net_arch=net_arch),

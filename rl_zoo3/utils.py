@@ -3,7 +3,7 @@ import glob
 import importlib
 import os
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Optional, Union
 
 import gymnasium as gym
 import stable_baselines3 as sb3  # noqa: F401
@@ -12,7 +12,7 @@ import yaml
 from gymnasium import spaces
 from huggingface_hub import HfApi
 from huggingface_sb3 import EnvironmentName, ModelName
-from sb3_contrib import ARS, QRDQN, TQC, TRPO, RecurrentPPO
+from sb3_contrib import ARS, QRDQN, TQC, TRPO, CrossQ, RecurrentPPO
 from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import BaseCallback
@@ -23,7 +23,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv,
 # For custom activation fn
 from torch import nn as nn
 
-ALGOS: Dict[str, Type[BaseAlgorithm]] = {
+ALGOS: dict[str, type[BaseAlgorithm]] = {
     "a2c": A2C,
     "ddpg": DDPG,
     "dqn": DQN,
@@ -32,6 +32,7 @@ ALGOS: Dict[str, Type[BaseAlgorithm]] = {
     "td3": TD3,
     # SB3 Contrib,
     "ars": ARS,
+    "crossq": CrossQ,
     "qrdqn": QRDQN,
     "tqc": TQC,
     "trpo": TRPO,
@@ -44,7 +45,7 @@ def flatten_dict_observations(env: gym.Env) -> gym.Env:
     return gym.wrappers.FlattenObservation(env)
 
 
-def get_wrapper_class(hyperparams: Dict[str, Any], key: str = "env_wrapper") -> Optional[Callable[[gym.Env], gym.Env]]:
+def get_wrapper_class(hyperparams: dict[str, Any], key: str = "env_wrapper") -> Optional[Callable[[gym.Env], gym.Env]]:
     """
     Get one or more Gym environment wrapper class specified as a hyper parameter
     "env_wrapper".
@@ -98,16 +99,22 @@ def get_wrapper_class(hyperparams: Dict[str, Any], key: str = "env_wrapper") -> 
                 kwargs = wrapper_dict[wrapper_name]
             else:
                 kwargs = {}
-            wrapper_module = importlib.import_module(get_module_name(wrapper_name))
-            wrapper_class = getattr(wrapper_module, get_class_name(wrapper_name))
+
+            if isinstance(wrapper_name, str):
+                wrapper_module = importlib.import_module(get_module_name(wrapper_name))
+                wrapper_class = getattr(wrapper_module, get_class_name(wrapper_name))
+            elif isinstance(wrapper_name, type):
+                # No conversion needed
+                wrapper_class = wrapper_name
+            else:
+                raise ValueError(
+                    f"Unexpected value {wrapper_name} for a {key}, must a str and a class, not {type(wrapper_name)}"
+                )
+
             wrapper_classes.append(wrapper_class)
             wrapper_kwargs.append(kwargs)
 
         def wrap_env(env: gym.Env) -> gym.Env:
-            """
-            :param env:
-            :return:
-            """
             for wrapper_class, kwargs in zip(wrapper_classes, wrapper_kwargs):
                 env = wrapper_class(env, **kwargs)
             return env
@@ -117,7 +124,7 @@ def get_wrapper_class(hyperparams: Dict[str, Any], key: str = "env_wrapper") -> 
         return None
 
 
-def get_class_by_name(name: str) -> Type:
+def get_class_by_name(name: str) -> type:
     """
     Imports and returns a class given the name, e.g. passing
     'stable_baselines3.common.callbacks.CheckpointCallback' returns the
@@ -137,7 +144,7 @@ def get_class_by_name(name: str) -> Type:
     return getattr(module, get_class_name(name))
 
 
-def get_callback_list(hyperparams: Dict[str, Any]) -> List[BaseCallback]:
+def get_callback_list(hyperparams: dict[str, Any]) -> list[BaseCallback]:
     """
     Get one or more Callback class specified as a hyper-parameter
     "callback".
@@ -154,7 +161,7 @@ def get_callback_list(hyperparams: Dict[str, Any]) -> List[BaseCallback]:
     :return:
     """
 
-    callbacks: List[BaseCallback] = []
+    callbacks: list[BaseCallback] = []
 
     if "callback" in hyperparams.keys():
         callback_name = hyperparams.get("callback")
@@ -182,8 +189,12 @@ def get_callback_list(hyperparams: Dict[str, Any]) -> List[BaseCallback]:
             else:
                 kwargs = {}
 
-            callback_class = get_class_by_name(callback_name)
-            callbacks.append(callback_class(**kwargs))
+            if isinstance(callback_name, BaseCallback):
+                # No conversion needed
+                callbacks.append(callback_name)
+            else:
+                callback_class = get_class_by_name(callback_name)
+                callbacks.append(callback_class(**kwargs))
 
     return callbacks
 
@@ -195,8 +206,10 @@ def create_test_env(
     seed: int = 0,
     log_dir: Optional[str] = None,
     should_render: bool = True,
-    hyperparams: Optional[Dict[str, Any]] = None,
-    env_kwargs: Optional[Dict[str, Any]] = None,
+    hyperparams: Optional[dict[str, Any]] = None,
+    env_kwargs: Optional[dict[str, Any]] = None,
+    vec_env_cls: Optional[type[VecEnv]] = None,
+    vec_env_kwargs: Optional[dict[str, Any]] = None,
 ) -> VecEnv:
     """
     Create environment for testing a trained agent
@@ -209,6 +222,8 @@ def create_test_env(
     :param should_render: For Pybullet env, display the GUI
     :param hyperparams: Additional hyperparams (ex: n_stack)
     :param env_kwargs: Optional keyword argument to pass to the env constructor
+    :param vec_env_cls: ``VecEnv`` class constructor.
+    :param vec_env_kwargs: Keyword arguments to pass to the ``VecEnv`` class constructor.
     :return:
     """
     # Create the environment and wrap it if necessary
@@ -220,9 +235,9 @@ def create_test_env(
     if "env_wrapper" in hyperparams.keys():
         del hyperparams["env_wrapper"]
 
-    vec_env_kwargs: Dict[str, Any] = {}
     # Avoid potential shared memory issue
-    vec_env_cls = SubprocVecEnv if n_envs > 1 else DummyVecEnv
+    if vec_env_cls is None:
+        vec_env_cls = SubprocVecEnv if n_envs > 1 else DummyVecEnv
 
     # Fix for gym 0.26, to keep old behavior
     env_kwargs = env_kwargs or {}
@@ -277,28 +292,36 @@ def create_test_env(
     return env
 
 
-def linear_schedule(initial_value: Union[float, str]) -> Callable[[float], float]:
+class SimpleLinearSchedule:
+    """
+    Linear learning rate schedule (from initial value to zero),
+    simpler than sb3 LinearSchedule.
+
+    :param initial_value: (float or str) The initial value for the schedule
+    """
+
+    def __init__(self, initial_value: Union[float, str]) -> None:
+        # Force conversion to float
+        self.initial_value = float(initial_value)
+
+    def __call__(self, progress_remaining: float) -> float:
+        return progress_remaining * self.initial_value
+
+    def __repr__(self) -> str:
+        return f"SimpleLinearSchedule(initial_value={self.initial_value})"
+
+
+def linear_schedule(initial_value: Union[float, str]) -> SimpleLinearSchedule:
     """
     Linear learning rate schedule.
 
     :param initial_value: (float or str)
-    :return: (function)
+    :return: A `SimpleLinearSchedule` object
     """
-    # Force conversion to float
-    initial_value_ = float(initial_value)
-
-    def func(progress_remaining: float) -> float:
-        """
-        Progress will decrease from 1 (beginning) to 0
-        :param progress_remaining: (float)
-        :return: (float)
-        """
-        return progress_remaining * initial_value_
-
-    return func
+    return SimpleLinearSchedule(initial_value)
 
 
-def get_trained_models(log_folder: str) -> Dict[str, Tuple[str, str]]:
+def get_trained_models(log_folder: str) -> dict[str, tuple[str, str]]:
     """
     :param log_folder: Root log folder
     :return: Dict representing the trained agents
@@ -319,7 +342,7 @@ def get_trained_models(log_folder: str) -> Dict[str, Tuple[str, str]]:
     return trained_models
 
 
-def get_hf_trained_models(organization: str = "sb3", check_filename: bool = False) -> Dict[str, Tuple[str, str]]:
+def get_hf_trained_models(organization: str = "sb3", check_filename: bool = False) -> dict[str, tuple[str, str]]:
     """
     Get pretrained models,
     available on the Hugginface hub for a given organization.
@@ -338,21 +361,24 @@ def get_hf_trained_models(organization: str = "sb3", check_filename: bool = Fals
     for model in models:
         # Try to extract algorithm and environment id from model card
         try:
-            env_id = model.cardData["model-index"][0]["results"][0]["dataset"]["name"]
-            algo = model.cardData["model-index"][0]["name"].lower()
+            assert model.card_data is not None
+            env_id = model.card_data["model-index"][0]["results"][0]["dataset"]["name"]
+            algo = model.card_data["model-index"][0]["name"].lower()
             # RecurrentPPO alias is "ppo_lstm" in the rl zoo
             if algo == "recurrentppo":
                 algo = "ppo_lstm"
-        except (KeyError, IndexError):
-            print(f"Skipping {model.modelId}")
+        except (KeyError, IndexError, AssertionError):
+            print(f"Skipping {model.id}")
             continue  # skip model if name env id or algo name could not be found
 
         env_name = EnvironmentName(env_id)
         model_name = ModelName(algo, env_name)
 
         # check if there is a model file in the repo
-        if check_filename and not any(f.rfilename == model_name.filename for f in api.model_info(model.modelId).siblings):
-            continue  # skip model if the repo contains no properly named model file
+        if check_filename:
+            maybe_siblings = api.model_info(model.id).siblings
+            if maybe_siblings and not any(f.rfilename == model_name.filename for f in maybe_siblings):
+                continue  # skip model if the repo contains no properly named model file
 
         trained_models[model_name] = (algo, env_id)
 
@@ -381,7 +407,7 @@ def get_saved_hyperparams(
     stats_path: str,
     norm_reward: bool = False,
     test_mode: bool = False,
-) -> Tuple[Dict[str, Any], Optional[str]]:
+) -> tuple[dict[str, Any], Optional[str]]:
     """
     Retrieve saved hyperparameters given a path.
     Return empty dict and None if the path is not valid.
@@ -391,7 +417,7 @@ def get_saved_hyperparams(
     :param test_mode:
     :return:
     """
-    hyperparams: Dict[str, Any] = {}
+    hyperparams: dict[str, Any] = {}
     if not os.path.isdir(stats_path):
         return hyperparams, None
     else:
@@ -411,6 +437,8 @@ def get_saved_hyperparams(
                 normalize_kwargs = eval(hyperparams["normalize"])
                 if test_mode:
                     normalize_kwargs["norm_reward"] = norm_reward
+            elif isinstance(hyperparams["normalize"], dict):
+                normalize_kwargs = hyperparams["normalize"]
             else:
                 normalize_kwargs = {"norm_obs": hyperparams["normalize"], "norm_reward": norm_reward}
             hyperparams["normalize_kwargs"] = normalize_kwargs
@@ -447,7 +475,7 @@ def get_model_path(
     load_best: bool = False,
     load_checkpoint: Optional[str] = None,
     load_last_checkpoint: bool = False,
-) -> Tuple[str, str, str]:
+) -> tuple[str, str, str]:
     if exp_id == 0:
         exp_id = get_latest_run_id(os.path.join(folder, algo), env_name)
         print(f"Loading latest experiment, id={exp_id}")

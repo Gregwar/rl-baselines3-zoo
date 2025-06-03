@@ -120,7 +120,7 @@ class ParallelTrainCallback(BaseCallback):
         self._model: Union[SAC, TQC]
         self.gradient_steps = gradient_steps
         self.process: Thread
-        self.model_class: Union[Type[SAC], Type[TQC]]
+        self.model_class: Union[type[SAC], type[TQC]]
         self.sleep_time = sleep_time
 
     def _init_callback(self) -> None:

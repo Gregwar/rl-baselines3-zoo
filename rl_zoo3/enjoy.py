@@ -162,6 +162,7 @@ def enjoy() -> None:  # noqa: C901
         should_render=not args.no_render,
         hyperparams=hyperparams,
         env_kwargs=env_kwargs,
+        vec_env_cls=ExperimentManager.default_vec_env_cls,
     )
 
     kwargs = dict(seed=args.seed)
@@ -184,16 +185,27 @@ def enjoy() -> None:  # noqa: C901
             "learning_rate": 0.0,
             "lr_schedule": lambda _: 0.0,
             "clip_range": lambda _: 0.0,
+            # load models with different obs bounds
+            # Note: doesn't work with channel last envs
+            # "observation_space": env.observation_space,
         }
 
     if "HerReplayBuffer" in hyperparams.get("replay_buffer_class", ""):
         kwargs["env"] = env
 
     model = ALGOS[algo].load(model_path, custom_objects=custom_objects, device=args.device, **kwargs)
+    # Uncomment to save patched file (for instance gym -> gymnasium)
+    # model.save(model_path)
+    # Patch VecNormalize (gym -> gymnasium)
+    # from pathlib import Path
+    # env.observation_space = model.observation_space
+    # env.action_space = model.action_space
+    # env.save(Path(model_path).parent / env_name / "vecnormalize.pkl")
+
     obs = env.reset()
 
     # Deterministic by default except for atari games
-    stochastic = args.stochastic or (is_atari or is_minigrid) and not args.deterministic
+    stochastic = args.stochastic or ((is_atari or is_minigrid) and not args.deterministic)
     deterministic = not stochastic
 
     episode_reward = 0.0

@@ -6,11 +6,11 @@ import zipfile
 from copy import deepcopy
 from pathlib import Path
 from pprint import pformat
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import torch as th
 import yaml
-from huggingface_hub import HfApi, Repository
+from huggingface_hub import HfApi
 from huggingface_hub.repocard import metadata_save
 from huggingface_sb3 import EnvironmentName, ModelName, ModelRepoId
 from huggingface_sb3.push_to_hub import _evaluate_agent, _generate_replay, generate_metadata
@@ -27,7 +27,7 @@ from rl_zoo3.utils import StoreDict, create_test_env, get_model_path
 msg = Printer()
 
 
-def save_model_card(repo_dir: Path, generated_model_card: str, metadata: Dict[str, Any]) -> None:
+def save_model_card(repo_dir: Path, generated_model_card: str, metadata: dict[str, Any]) -> None:
     """Saves a model card for the repository.
 
     :param repo_dir: repository directory
@@ -50,9 +50,9 @@ def generate_model_card(
     env_id: str,
     mean_reward: float,
     std_reward: float,
-    hyperparams: Dict[str, Any],
-    env_kwargs: Dict[str, Any],
-) -> Tuple[str, Dict[str, Any]]:
+    hyperparams: dict[str, Any],
+    env_kwargs: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
     """
     Generate the model card for the Hub
 
@@ -83,6 +83,7 @@ with hyperparameter optimization and pre-trained agents included.
 RL Zoo: https://github.com/DLR-RM/rl-baselines3-zoo<br/>
 SB3: https://github.com/DLR-RM/stable-baselines3<br/>
 SB3 Contrib: https://github.com/Stable-Baselines-Team/stable-baselines3-contrib
+SBX (SB3 + Jax): https://github.com/araffin/sbx
 
 Install the RL Zoo (with SB3 and SB3-Contrib):
 ```bash
@@ -130,8 +131,8 @@ def package_to_hub(
     algo_name: str,
     algo_class_name: str,
     log_path: Path,
-    hyperparams: Dict[str, Any],
-    env_kwargs: Dict[str, Any],
+    hyperparams: dict[str, Any],
+    env_kwargs: dict[str, Any],
     env_name: EnvironmentName,
     eval_env: VecEnv,
     repo_id: ModelRepoId,
@@ -195,13 +196,15 @@ def package_to_hub(
         private=False,
         exist_ok=True,
     )
-
-    # Git pull
+    # Retrieve current repo state
     repo_local_path = Path(local_repo_path) / repo_name
-    repo = Repository(repo_local_path, clone_from=repo_url)
-    repo.git_pull(rebase=True)
+    api.snapshot_download(repo_id=repo_id, local_dir=repo_local_path)
 
-    repo.lfs_track(["*.mp4"])
+    # Add mp4 files to .gitattributes
+    with open(repo_local_path / ".gitattributes", "a+") as f:
+        f.seek(0)  # Move the file pointer to the beginning of the file
+        if not any("*.mp4" in line for line in f):
+            f.write("*.mp4 filter=lfs diff=lfs merge=lfs -text\n")
 
     # Step 1: Save the model
     print("Saving model to:", repo_local_path / model_name)
@@ -269,7 +272,7 @@ def package_to_hub(
     save_model_card(repo_local_path, generated_model_card, metadata)
 
     msg.info(f"Pushing repo {repo_name} to the Hugging Face Hub")
-    repo.push_to_hub(commit_message=commit_message)
+    api.upload_folder(repo_id=repo_id, folder_path=repo_local_path, commit_message=commit_message)
 
     msg.info(f"Your model is pushed to the hub. You can view your model here: {repo_url}")
     return repo_url
@@ -391,11 +394,11 @@ if __name__ == "__main__":
 
     # Note: we assume that we push models using the same machine (same python version)
     # that trained them, if not, we would need to pass custom object as in enjoy.py
-    custom_objects: Dict[str, Any] = {}
+    custom_objects: dict[str, Any] = {}
     model = ALGOS[algo].load(model_path, env=eval_env, custom_objects=custom_objects, device=args.device, **kwargs)
 
     # Deterministic by default except for atari games
-    stochastic = args.stochastic or (is_atari or is_minigrid) and not args.deterministic
+    stochastic = args.stochastic or ((is_atari or is_minigrid) and not args.deterministic)
     deterministic = not stochastic
 
     # Default model name, the model will be saved under "{algo}-{env_name}.zip"

@@ -301,7 +301,7 @@ def sample_sac_params(trial: optuna.Trial, n_actions: int, n_envs: int, addition
 
     return convert_offpolicy_params(hyperparams)
 
-def sample_crossq_params(trial: optuna.Trial, n_actions: int, n_envs: int, additional_args: dict) -> Dict[str, Any]:
+def sample_crossq_params(trial: optuna.Trial, n_actions: int, n_envs: int, additional_args: dict) -> dict[str, Any]:
     """
     Sampler for CrossQ hyperparams.
 

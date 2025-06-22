@@ -50,7 +50,7 @@ from torch import nn as nn
 try:
     import flax.linen as linen_nn
     import optax
-except except ImportError:
+except ImportError:
     print("Warning: Linen/Optax not found")
 
 # Register custom envs

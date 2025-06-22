@@ -47,6 +47,12 @@ from stable_baselines3.common.vec_env import (
 # For custom activation fn
 from torch import nn as nn
 
+try:
+    import flax.linen as linen_nn
+    import optax
+except except ImportError:
+    print("Warning: Linen/Optax not found")
+
 # Register custom envs
 import rl_zoo3.import_envs  # noqa: F401
 from rl_zoo3.callbacks import SaveVecNormalizeCallback, TrialEvalCallback, NoiseSchedulerCallback

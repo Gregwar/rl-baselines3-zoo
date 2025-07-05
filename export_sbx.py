@@ -51,13 +51,6 @@ def jax_to_torch(tensor: jax.Array) -> torch.Tensor:
     return torch.tensor(np.array(tensor))
 
 
-def jax_to_torch(tensor: jax.Array) -> torch.Tensor:
-    """
-    Converts a jax tensor (Array) to a torch tensor
-    """    
-    return torch.tensor(np.array(tensor))
-
-
 def load_batch_norm(params: dict, batch_stats: dict) -> torch.nn.BatchNorm1d:
     """
     Translate a JAX Batch norm to Torch

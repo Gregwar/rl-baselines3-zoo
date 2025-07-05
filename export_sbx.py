@@ -51,6 +51,13 @@ def jax_to_torch(tensor: jax.Array) -> torch.Tensor:
     return torch.tensor(np.array(tensor))
 
 
+def jax_to_torch(tensor: jax.Array) -> torch.Tensor:
+    """
+    Converts a jax tensor (Array) to a torch tensor
+    """    
+    return torch.tensor(np.array(tensor))
+
+
 def load_batch_norm(params: dict, batch_stats: dict) -> torch.nn.BatchNorm1d:
     """
     Translate a JAX Batch norm to Torch
@@ -181,13 +188,11 @@ class TorchCritic(torch.nn.Module):
     This is based on CrossQ critic model, the architecture is as following:
 
     - Concatenate observation and action
-    - BatchRenorm (optional, at the beginning)
-    - Dense + ReLU
-    - Dense + ReLU
-    [...] repeated for hidden layers
-    - Dense (output layer with linear activation)
+    - BatchRenorm_0 -> Dense_0 -> ReLU
+    - BatchRenorm_1 -> Dense_1 -> ReLU  
+    - BatchRenorm_2 -> Dense_2 (output layer with linear activation)
 
-    The activation function is ReLU
+    The activation function is ReLU for hidden layers, linear for output
     """    
 
     def __init__(self, policy, critic_idx: int = 0):
@@ -198,19 +203,27 @@ class TorchCritic(torch.nn.Module):
 
         layers = []
         
-        # Initial BatchRenorm (if used)
-        if "BatchRenorm_0" in jax_params:
-            layers.append(load_batch_norm_vectorized(jax_params["BatchRenorm_0"], batch_stats["BatchRenorm_0"], critic_idx))
+        # Layer 1: BatchRenorm_0 -> Dense_0 -> ReLU
+        layers += [
+            load_batch_norm_vectorized(jax_params["BatchRenorm_0"], batch_stats["BatchRenorm_0"], critic_idx),
+            load_dense_vectorized(jax_params["Dense_0"], critic_idx),
+            torch.nn.ReLU()
+        ]
         
-        # Hidden layers
-        for k in range(len(policy.qf.net_arch)):
+        # Hidden layers: BatchRenorm_k -> Dense_k -> ReLU
+        for k in range(1, len(policy.qf.net_arch)):
             layers += [
+                load_batch_norm_vectorized(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"], critic_idx),
                 load_dense_vectorized(jax_params[f"Dense_{k}"], critic_idx),
                 torch.nn.ReLU()
             ]
         
-        # Output layer (no activation)
-        layers.append(load_dense_vectorized(jax_params[f"Dense_{len(policy.qf.net_arch)}"], critic_idx))
+        # Output layer: BatchRenorm_final -> Dense_final (no activation)
+        final_k = len(policy.qf.net_arch)
+        layers += [
+            load_batch_norm_vectorized(jax_params[f"BatchRenorm_{final_k}"], batch_stats[f"BatchRenorm_{final_k}"], critic_idx),
+            load_dense_vectorized(jax_params[f"Dense_{final_k}"], critic_idx)
+        ]
         
         self.net = torch.nn.Sequential(*layers)
 

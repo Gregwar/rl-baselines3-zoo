@@ -9,6 +9,7 @@ from sbx import DDPG, DQN, PPO, SAC, TD3, TQC, DroQ, CrossQ
 from rl_zoo3.utils import ALGOS, get_latest_run_id
 import argparse
 import openvino as ov
+import gym_footsteps_planning
 
 rl_zoo3.ALGOS["ddpg"] = DDPG
 rl_zoo3.ALGOS["dqn"] = DQN
@@ -78,6 +79,42 @@ def load_dense(params: dict) -> torch.nn.Linear:
     values = dense.state_dict()
     values["weight"] = jax_to_torch(params["kernel"].T)
     values["bias"] = jax_to_torch(params["bias"])
+
+    dense.load_state_dict(values)
+
+    return dense
+
+
+def load_batch_norm_vectorized(params: dict, batch_stats: dict, critic_idx: int = 0) -> torch.nn.BatchNorm1d:
+    """
+    Translate a JAX Batch norm to Torch for vectorized critics
+    """    
+    # Extract parameters for specific critic index
+    features = params["bias"].shape[1]  # Skip the first dimension (critic index)
+
+    bn = torch.nn.BatchNorm1d(features, momentum=0.99, eps=0.001)
+    values = bn.state_dict()
+    values["weight"] = jax_to_torch(params["scale"][critic_idx])
+    values["bias"] = jax_to_torch(params["bias"][critic_idx])
+    values["running_mean"] = jax_to_torch(batch_stats["mean"][critic_idx])
+    values["running_var"] = jax_to_torch(batch_stats["var"][critic_idx])
+
+    bn.load_state_dict(values)
+
+    return bn
+
+
+def load_dense_vectorized(params: dict, critic_idx: int = 0) -> torch.nn.Linear:
+    """
+    Translates a JAX Dense layer to Torch for vectorized critics
+    """    
+    # Extract parameters for specific critic index
+    _, in_features, out_features = params["kernel"].shape  # Skip the first dimension (critic index)
+
+    dense = torch.nn.Linear(in_features, out_features)
+    values = dense.state_dict()
+    values["weight"] = jax_to_torch(params["kernel"][critic_idx].T)
+    values["bias"] = jax_to_torch(params["bias"][critic_idx])
 
     dense.load_state_dict(values)
 
@@ -155,25 +192,25 @@ class TorchCritic(torch.nn.Module):
 
     def __init__(self, policy, critic_idx: int = 0):
         super().__init__()
-        # CrossQ has multiple critics, we select one by index
-        jax_params = policy.critic_state.params[f"critic_{critic_idx}"]
-        batch_stats = policy.critic_state.batch_stats[f"critic_{critic_idx}"]
+        # CrossQ uses a vectorized critic, we access VmapCritic_0
+        jax_params = policy.qf_state.params["VmapCritic_0"]
+        batch_stats = policy.qf_state.batch_stats["VmapCritic_0"]
 
         layers = []
         
         # Initial BatchRenorm (if used)
         if "BatchRenorm_0" in jax_params:
-            layers.append(load_batch_norm(jax_params["BatchRenorm_0"], batch_stats["BatchRenorm_0"]))
+            layers.append(load_batch_norm_vectorized(jax_params["BatchRenorm_0"], batch_stats["BatchRenorm_0"], critic_idx))
         
         # Hidden layers
-        for k in range(len(policy.critic.net_arch)):
+        for k in range(len(policy.qf.net_arch)):
             layers += [
-                load_dense(jax_params[f"Dense_{k}"]),
+                load_dense_vectorized(jax_params[f"Dense_{k}"], critic_idx),
                 torch.nn.ReLU()
             ]
         
         # Output layer (no activation)
-        layers.append(load_dense(jax_params[f"Dense_{len(policy.critic.net_arch)}"]))
+        layers.append(load_dense_vectorized(jax_params[f"Dense_{len(policy.qf.net_arch)}"], critic_idx))
         
         self.net = torch.nn.Sequential(*layers)
 
@@ -189,8 +226,8 @@ mlp.eval()
 # Initialize critic if needed
 if args.export_critic:
     print("Preparing critic export...")
-    critic_params = model.policy.critic_state.params
-    num_critics = len([key for key in critic_params.keys() if key.startswith("critic_")])
+    # CrossQ uses VmapCritic structure with n_critics
+    num_critics = model.policy.n_critics
     print(f"Found {num_critics} critics to export")
 
 if args.enjoy:
@@ -237,9 +274,8 @@ else:
     ov.save_model(ov_model_actor, f"{directory}/{args.env}_actor.xml")
 
     if args.export_critic:
-        # Export each critic (CrossQ typically has multiple critics)
-        critic_params = model.policy.critic_state.params
-        num_critics = len([key for key in critic_params.keys() if key.startswith("critic_")])
+        # Export each critic (CrossQ uses VmapCritic structure with n_critics)
+        num_critics = model.policy.n_critics
         
         for critic_idx in range(num_critics):
             mlpc = TorchCritic(model.policy, critic_idx)

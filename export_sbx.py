@@ -11,6 +11,7 @@ from rl_zoo3.utils import ALGOS, get_latest_run_id
 import gymnasium as gym
 import argparse
 import openvino as ov
+import gym_footsteps_planning
 
 rl_zoo3.ALGOS["ddpg"] = DDPG
 rl_zoo3.ALGOS["dqn"] = DQN
@@ -35,6 +36,7 @@ parser.add_argument(
     default=[],
     help="Additional external Gym environment package modules to import",
 )
+parser.add_argument("--export-critic", help="Export the critic network as well", action="store_true")
 args = parser.parse_args()
 
 for env_module in args.gym_packages:
@@ -98,6 +100,42 @@ def load_dense(params: dict) -> torch.nn.Linear:
     return dense
 
 
+def load_batch_norm_vectorized(params: dict, batch_stats: dict, critic_idx: int = 0) -> torch.nn.BatchNorm1d:
+    """
+    Translate a JAX Batch norm to Torch for vectorized critics
+    """    
+    # Extract parameters for specific critic index
+    features = params["bias"].shape[1]  # Skip the first dimension (critic index)
+
+    bn = torch.nn.BatchNorm1d(features, momentum=0.99, eps=0.001)
+    values = bn.state_dict()
+    values["weight"] = jax_to_torch(params["scale"][critic_idx])
+    values["bias"] = jax_to_torch(params["bias"][critic_idx])
+    values["running_mean"] = jax_to_torch(batch_stats["mean"][critic_idx])
+    values["running_var"] = jax_to_torch(batch_stats["var"][critic_idx])
+
+    bn.load_state_dict(values)
+
+    return bn
+
+
+def load_dense_vectorized(params: dict, critic_idx: int = 0) -> torch.nn.Linear:
+    """
+    Translates a JAX Dense layer to Torch for vectorized critics
+    """    
+    # Extract parameters for specific critic index
+    _, in_features, out_features = params["kernel"].shape  # Skip the first dimension (critic index)
+
+    dense = torch.nn.Linear(in_features, out_features)
+    values = dense.state_dict()
+    values["weight"] = jax_to_torch(params["kernel"][critic_idx].T)
+    values["bias"] = jax_to_torch(params["bias"][critic_idx])
+
+    dense.load_state_dict(values)
+
+    return dense
+
+
 class TorchActor(torch.nn.Module):
     """
     Jax Actor translated to PyTorch
@@ -152,8 +190,66 @@ class TorchActor(torch.nn.Module):
         return output
 
 
+class TorchCritic(torch.nn.Module):
+    """
+    Jax Critic translated to PyTorch
+    This is based on CrossQ critic model, the architecture is as following:
+
+    - Concatenate observation and action
+    - BatchRenorm_0 -> Dense_0 -> ReLU
+    - BatchRenorm_1 -> Dense_1 -> ReLU  
+    - BatchRenorm_2 -> Dense_2 (output layer with linear activation)
+
+    The activation function is ReLU for hidden layers, linear for output
+    """    
+
+    def __init__(self, policy, critic_idx: int = 0):
+        super().__init__()
+        # CrossQ uses a vectorized critic, we access VmapCritic_0
+        jax_params = policy.qf_state.params["VmapCritic_0"]
+        batch_stats = policy.qf_state.batch_stats["VmapCritic_0"]
+
+        layers = []
+        
+        # Layer 1: BatchRenorm_0 -> Dense_0 -> ReLU
+        layers += [
+            load_batch_norm_vectorized(jax_params["BatchRenorm_0"], batch_stats["BatchRenorm_0"], critic_idx),
+            load_dense_vectorized(jax_params["Dense_0"], critic_idx),
+            torch.nn.ReLU()
+        ]
+        
+        # Hidden layers: BatchRenorm_k -> Dense_k -> ReLU
+        for k in range(1, len(policy.qf.net_arch)):
+            layers += [
+                load_batch_norm_vectorized(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"], critic_idx),
+                load_dense_vectorized(jax_params[f"Dense_{k}"], critic_idx),
+                torch.nn.ReLU()
+            ]
+        
+        # Output layer: BatchRenorm_final -> Dense_final (no activation)
+        final_k = len(policy.qf.net_arch)
+        layers += [
+            load_batch_norm_vectorized(jax_params[f"BatchRenorm_{final_k}"], batch_stats[f"BatchRenorm_{final_k}"], critic_idx),
+            load_dense_vectorized(jax_params[f"Dense_{final_k}"], critic_idx)
+        ]
+        
+        self.net = torch.nn.Sequential(*layers)
+
+    def forward(self, obs, action):
+        # Concatenate observation and action
+        x = torch.cat([obs, action], dim=1)
+        return self.net(x)
+
+
 mlp = TorchActor(model.policy, args.squash)
 mlp.eval()
+
+# Initialize critic if needed
+if args.export_critic:
+    print("Preparing critic export...")
+    # CrossQ uses VmapCritic structure with n_critics
+    num_critics = model.policy.n_critics
+    print(f"Found {num_critics} critics to export")
 
 if args.enjoy:
     env = gymnasium.make(args.env, render_mode="human")
@@ -197,3 +293,23 @@ else:
 
     ov_model_actor = ov.convert_model(input_model=actor_fname, input=input_shape)
     ov.save_model(ov_model_actor, f"{directory}/{args.env}_actor.xml")
+
+    if args.export_critic:
+        # Export each critic (CrossQ uses VmapCritic structure with n_critics)
+        num_critics = model.policy.n_critics
+        
+        for critic_idx in range(num_critics):
+            mlpc = TorchCritic(model.policy, critic_idx)
+            mlpc.eval()
+
+            critic_fname = f"{directory}/{args.env}_critic_{critic_idx}.onnx"
+            print(f"Exporting critic model {critic_idx} to {critic_fname}")
+            
+            # Create dummy inputs for the critic (observation and action)
+            dummy_action = torch.randn(1, env.action_space.shape[0])
+            torch.onnx.export(mlpc, (obs, dummy_action), critic_fname, opset_version=11)
+
+            # OpenVINO export for critic
+            input_shape = [(obs.shape, ov.Type.f32), (dummy_action.shape, ov.Type.f32)]
+            ov_model_critic = ov.convert_model(input_model=critic_fname, input=input_shape)
+            ov.save_model(ov_model_critic, f"{directory}/{args.env}_critic_{critic_idx}.xml")

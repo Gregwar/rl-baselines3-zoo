@@ -1,4 +1,5 @@
 import rl_zoo3.train
+import importlib
 import os
 import gymnasium
 import numpy as np
@@ -7,6 +8,7 @@ import torch
 from rl_zoo3.export import make_dummy_obs
 from sbx import DDPG, DQN, PPO, SAC, TD3, TQC, DroQ, CrossQ
 from rl_zoo3.utils import ALGOS, get_latest_run_id
+import gymnasium as gym
 import argparse
 import openvino as ov
 
@@ -26,7 +28,20 @@ parser.add_argument("--exp_id", help="Experiment ID", type=int, required=False)
 parser.add_argument("--output", help="Target directory", type=str, required=True)
 parser.add_argument("--squash", help="Squash output between -1 and 1 (default False)", action="store_true")
 parser.add_argument("--enjoy", help="Enjoy the torch module", action="store_true")
+parser.add_argument(
+    "--gym-packages",
+    type=str,
+    nargs="+",
+    default=[],
+    help="Additional external Gym environment package modules to import",
+)
 args = parser.parse_args()
+
+for env_module in args.gym_packages:
+    print(f"Importing gym module {env_module}")
+    m = importlib.import_module(env_module)
+    print(m)
+    print(m.__file__)
 
 print(f"Loading env {args.env}")
 env = gymnasium.make(args.env)
@@ -45,14 +60,14 @@ model = ALGOS[args.algo].load(model_fname, env=env)
 def jax_to_torch(tensor: jax.Array) -> torch.Tensor:
     """
     Converts a jax tensor (Array) to a torch tensor
-    """    
+    """
     return torch.tensor(np.array(tensor))
 
 
 def load_batch_norm(params: dict, batch_stats: dict) -> torch.nn.BatchNorm1d:
     """
     Translate a JAX Batch norm to Torch
-    """    
+    """
     features = params["bias"].shape[0]
 
     bn = torch.nn.BatchNorm1d(features, momentum=0.99, eps=0.001)
@@ -70,7 +85,7 @@ def load_batch_norm(params: dict, batch_stats: dict) -> torch.nn.BatchNorm1d:
 def load_dense(params: dict) -> torch.nn.Linear:
     """
     Translates a JAX Dense layer to Torch
-    """    
+    """
     in_features, out_features = params["kernel"].shape
 
     dense = torch.nn.Linear(in_features, out_features)
@@ -101,7 +116,7 @@ class TorchActor(torch.nn.Module):
     - If not squashed, the output is rescaled to the action space
 
     The activation function has to be ReLu
-    """    
+    """
 
     def __init__(self, policy, squash: bool = False):
         super().__init__()
@@ -118,14 +133,14 @@ class TorchActor(torch.nn.Module):
             layers += [
                 load_batch_norm(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"]),
                 load_dense(jax_params[f"Dense_{k}"]),
-                torch.nn.ReLU()
+                torch.nn.ReLU(),
             ]
 
         k = len(policy.actor.net_arch)
         layers += [
             load_batch_norm(jax_params[f"BatchRenorm_{k}"], batch_stats[f"BatchRenorm_{k}"]),
             load_dense(jax_params[f"Dense_{k}"]),
-            torch.nn.Tanh()
+            torch.nn.Tanh(),
         ]
         self.net = torch.nn.Sequential(*layers)
 
@@ -173,7 +188,7 @@ else:
     torch.onnx.export(mlp, obs, actor_fname, opset_version=11)
 
     print("Exporting models for OpenVino...")
-    
+
     #### Old way to export model to OpenVino IR using Model Optimizer (mo) ####
     # input_shape = ",".join(map(str, obs.shape))
     # os.system(f"mo --input_model {actor_fname} --input_shape [{input_shape}] --compress_to_fp16=False --output_dir {args.output}")

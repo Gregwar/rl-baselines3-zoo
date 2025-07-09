@@ -181,4 +181,4 @@ else:
     input_shape = (obs.shape, ov.Type.f32)
 
     ov_model_actor = ov.convert_model(input_model=actor_fname, input=input_shape)
-    ov.save_model(ov_model_actor, f"{directory}/{args.env}_actor.xml")
+    ov.save_model(ov_model_actor, f"{directory}/{args.env}_actor.xml", compress_to_fp16=False)
